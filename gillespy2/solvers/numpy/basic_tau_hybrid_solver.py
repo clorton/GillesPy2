@@ -11,6 +11,11 @@ from gillespy2.core.gillespyError import *
 
 eval_globals = math.__dict__
 
+class RepeatTimer(threading.Timer):
+    def run(self):
+        while not self.finished.wait(self.interval):
+            self.function(*self.args, **self.kwargs)
+
 def __piecewise(*args):
     '''
     Eval entry for piecewise functions
@@ -49,6 +54,15 @@ class BasicTauHybridSolver(GillesPySolver):
     rc = 0
     result = None
     stop_event = None
+
+    # initialized globals for live graphing
+    curr_time = None
+    number_species = None
+    curr_state = None
+    species = None
+    timeline = None
+    trajectory_base = None
+    entry_count = None
 
     def __init__(self):
         name = 'BasicTauHybridSolver'
@@ -721,6 +735,48 @@ class BasicTauHybridSolver(GillesPySolver):
             y_map[event] = i+len(species)+len(parameters)+len(compiled_reactions)
         return y0, y_map
 
+    def __display(self,display_type ):
+
+        if display_type is not None:
+                import matplotlib.pyplot as plt
+                from gillespy2.core.results import common_rgb_values
+                from IPython.display import clear_output
+
+                try:
+
+                    if display_type == "text":
+
+                        print(str(round(curr_time, 2))[:10].ljust(10), end="|")
+
+                        for i in range(number_species):
+                            print(str(curr_state[species[i]])[:10].ljust(10), end="|")
+                        print("")
+
+                    elif display_type == "progress":
+
+                        clear_output(wait=True)
+                        print("progress =", round((curr_time / timeline.size) * 100, 2), "%\n")
+
+                    elif display_type == "graph":
+
+                        clear_output(wait=True)
+                        plt.figure(figsize=(18, 10))
+                        plt.xlim(right=timeline.size)
+                        for i in range(number_species):
+                            line_color = common_rgb_values()[(i) % len(common_rgb_values())]
+
+                            plt.plot(trajectory_base[0][:, 0][:entry_count].tolist(),
+                                     trajectory_base[0][:, i + 1][:entry_count].tolist(), color=line_color,
+                                     label=species[i])
+
+                        plt.legend(loc='upper right')
+                        plt.show()
+
+                except:
+                    # log.warning("failed to display output at curr_time = {0}".format(curr_time))
+                    # log.warning("Make sure display_interval > 2")
+                    pass
+
     @classmethod
     def run(self, model, t=20, number_of_trajectories=1, increment=0.05, seed=None, 
             debug=False, profile=False, show_labels=True,
@@ -788,8 +844,22 @@ class BasicTauHybridSolver(GillesPySolver):
                                         'event_sensitivity':event_sensitivity,
                                         'integrator':integrator,
                                         'integrator_options':integrator_options})
+
+
+
         sim_thread.start()
+
+        display_type = 'text'  # TODO REPLACE WITH KWARG
+        print_interval = 1  # TODO REPLACE WITH KWARG
+        if print_interval > 0:
+
+            display_timer = RepeatTimer(print_interval,self.__display,args=(display_type,))
+            display_timer.start()
+
         sim_thread.join(timeout=timeout)
+
+        display_timer.cancel()
+
         self.stop_event.set()
         while self.result is None: pass
         return self.result, self.rc
@@ -800,6 +870,8 @@ class BasicTauHybridSolver(GillesPySolver):
             debug=False, profile=False, show_labels=True,
             tau_tol=0.03, event_sensitivity=100, integrator='LSODA',
             integrator_options={}, **kwargs):
+
+        global curr_time, number_species, curr_state, species, timeline, trajectory_base, entry_count
 
         if debug:
             print("t = ", t)
