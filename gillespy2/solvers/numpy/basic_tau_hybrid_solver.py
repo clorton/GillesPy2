@@ -56,13 +56,15 @@ class BasicTauHybridSolver(GillesPySolver):
     stop_event = None
 
     # initialized globals for live graphing
-    curr_time = None
-    number_species = None
-    curr_state = None
-    species = None
-    timeline = None
-    trajectory_base = None
-    entry_count = None
+
+    # curr_time = None
+    # curr_state = None
+    # timeline = None
+    # trajectory_base = None
+    d_time = None
+    d_state = None
+    d_timeline = None
+    d_t_base = None
 
     def __init__(self):
         name = 'BasicTauHybridSolver'
@@ -494,7 +496,6 @@ class BasicTauHybridSolver(GillesPySolver):
                                                 delayed_events,
                                                 model.tspan[-1], next_tau)
 
-
         # Update states of all species based on changes made to species through
         # ODE processes.  This will update all species whose mode is set to
         # 'continuous', as well as 'dynamic' mode species which have been
@@ -736,54 +737,11 @@ class BasicTauHybridSolver(GillesPySolver):
         return y0, y_map
 
 
-
-    # def __display(self,display_type ):
-    #
-    #     if display_type is not None:
-    #             import matplotlib.pyplot as plt
-    #             from gillespy2.core.results import common_rgb_values
-    #             from IPython.display import clear_output
-    #
-    #             # try:
-    #
-    #             if display_type == "text":
-    #
-    #                 print(str(round(curr_time, 2))[:10].ljust(10), end="|")
-    #
-    #                 for i in range(number_species):
-    #                     print(str(curr_state[species[i]])[:10].ljust(10), end="|")
-    #                 print("")
-    #
-    #             elif display_type == "progress":
-    #
-    #                 clear_output(wait=True)
-    #                 print("progress =", round((curr_time / timeline.size) * 100, 2), "%\n")
-    #
-    #             elif display_type == "graph":
-    #
-    #                 clear_output(wait=True)
-    #                 plt.figure(figsize=(18, 10))
-    #                 plt.xlim(right=timeline.size)
-    #                 for i in range(number_species):
-    #                     line_color = common_rgb_values()[(i) % len(common_rgb_values())]
-    #
-    #                     plt.plot(trajectory_base[0][:, 0][:entry_count].tolist(),
-    #                              trajectory_base[0][:, i + 1][:entry_count].tolist(), color=line_color,
-    #                              label=species[i])
-    #
-    #                 plt.legend(loc='upper right')
-    #                 plt.show()
-    #
-    #             # except:
-    #             #     # log.warning("failed to display output at curr_time = {0}".format(curr_time))
-    #             #     # log.warning("Make sure display_interval > 2")
-    #             #     pass
-
     @classmethod
     def run(self, model, t=20, number_of_trajectories=1, increment=0.05, seed=None,
             debug=False, profile=False, show_labels=True,
             tau_tol=0.03, event_sensitivity=100, integrator='LSODA',
-            integrator_options={}, display_interval = 0, display_type ='text', timeout=None, **kwargs):
+            integrator_options={}, display_interval = 0, display_type =None, timeout=None, **kwargs):
         """
         Function calling simulation of the model. This is typically called by the run function in GillesPy2 model
         objects and will inherit those parameters which are passed with the model as the arguments this run function.
@@ -849,32 +807,23 @@ class BasicTauHybridSolver(GillesPySolver):
 
         sim_thread.start()
 
-        if display_interval > 0:
+        from gillespy2.core.liveGraphing import valid_graph_params
+
+        live_grapher = None
+
+        if valid_graph_params(display_type,display_interval):
+
             import gillespy2.core.liveGraphing
-            if display_type is None:
-                print("display_type unspecified. Displaying text.")
-                display_type = "text"
-                gillespy2.core.liveGraphing.print_text_header(model=model)
 
-            elif display_type == "text":
-                gillespy2.core.liveGraphing.print_text_header(model=model)
+            live_grapher = gillespy2.core.liveGraphing.LiveDisplayer(display_type,display_interval,model)
 
-            elif display_type is not "graph" and display_type is not "progress":
-                print("Got display_type = \"", display_type,
-                      "\". Display_type should be \"graph\", \"text\", or \"progress\"", sep="")
-
-        else:
-            display_type = None
-
-        if display_interval > 0:
-            import gillespy2.core.liveGraphing
-            display_timer = RepeatTimer(display_interval, gillespy2.core.liveGraphing.display,
-                                        args=(display_type,self))
+            display_timer = RepeatTimer(display_interval, live_grapher.display,
+                                        args=(d_time,  d_state, d_timeline, d_t_base))
             display_timer.start()
 
         sim_thread.join(timeout=timeout)
 
-        if display_interval >0:
+        if live_grapher is not None:
             display_timer.cancel()
 
         self.stop_event.set()
@@ -886,7 +835,7 @@ class BasicTauHybridSolver(GillesPySolver):
             tau_tol=0.03, event_sensitivity=100, integrator='LSODA',
             integrator_options={}, **kwargs):
 
-        global curr_time, number_species, curr_state, species, timeline, trajectory_base, entry_count
+        # global curr_time,  curr_state, timeline, trajectory_base
 
         if debug:
             print("t = ", t)
@@ -1013,8 +962,8 @@ class BasicTauHybridSolver(GillesPySolver):
                 import time
                 time.sleep(0.03)
 
-                # TODO create better entry_count variable instead of flooring every time
-                entry_count = math.floor(curr_time)
+                # # TODO create better entry_count variable instead of flooring every time
+                # entry_count = math.floor(curr_time)
                 #####################################################################
 
                 if self.stop_event.is_set(): 
