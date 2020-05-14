@@ -24,17 +24,6 @@ class BasicODESolver(GillesPySolver):
     stop_event = None
     result = None
 
-
-    #initialized globals for live graphing
-    curr_time = None
-    number_species = None
-    curr_state = None
-    species = None
-    timeline = None
-    trajectory_base = None
-    entry_count = None
-
-
     def __init__(self):
         name = "BasicODESolver"
         rc = 0
@@ -162,9 +151,6 @@ class BasicODESolver(GillesPySolver):
 
     def __run(self, model, t=20, number_of_trajectories=1, increment=0.05, timeout=None,
             show_labels=True, integrator='lsoda', integrator_options={}, **kwargs):
-
-        global curr_time ,number_species,curr_state,species ,timeline ,trajectory_base ,entry_count
-
 
         start_state = [model.listOfSpecies[species].initial_value for species in model.listOfSpecies]
 

@@ -55,17 +55,6 @@ class BasicTauHybridSolver(GillesPySolver):
     result = None
     stop_event = None
 
-    # initialized globals for live graphing
-
-    # curr_time = None
-    # curr_state = None
-    # timeline = None
-    # trajectory_base = None
-    d_curr_time = None
-    d_curr_state = None
-    d_timeline = None
-    d_t_base = None
-
     def __init__(self):
         name = 'BasicTauHybridSolver'
         rc = 0
@@ -794,9 +783,50 @@ class BasicTauHybridSolver(GillesPySolver):
             for key in kwargs:
                 log.warning('Unsupported keyword argument to {0} solver: {1}'.format(self.name, key))
 
-        if timeout is not None and timeout <= 0: timeout = None
+        if timeout is not None and timeout <= 0:
+            timeout = None
 
-        sim_thread = threading.Thread(target=self.__run, args=(model,), kwargs={'t':t,
+        if debug:
+            print("t = ", t)
+            print("increment = ", increment)
+
+        # if len(model.listOfEvents):
+        #     self.__set_recommended_ode_defaults(integrator_options)
+        # self.__set_seed(seed)
+
+        # create mapping of species dictionary to array indices
+        # species_mappings = model._listOfSpecies
+        species = list( model._listOfSpecies.keys())
+        # parameter_mappings = model._listOfParameters
+        # parameters = list(parameter_mappings.keys())
+        number_species = len(species)
+
+        initial_state = OrderedDict()
+        self.__initialize_state(model, initial_state, debug)
+        initial_state['vol'] = model.volume
+        initial_state['t'] = 0
+
+        # create numpy array for timeline
+        timeline = np.linspace(0, t, int(round(t / increment + 1)))
+
+        # create numpy matrix to mark all state data of time and species
+        trajectory_base = np.zeros((number_of_trajectories, timeline.size, number_species + 1))
+
+        # copy time values to all trajectory row starts
+        trajectory_base[:, :, 0] = timeline
+
+        # copy initial populations to base
+        spec_modes = ['continuous', 'dynamic', 'discrete']
+        for i, s in enumerate(species):
+            if model.listOfSpecies[s].mode not in spec_modes:
+                raise SpeciesError('Species mode can only be \'continuous\', \'dynamic\', or \'discrete\'.')
+            trajectory_base[:, 0, i+1] = initial_state[s]
+
+        curr_time = 0  # Current Simulation Time
+
+        curr_state = initial_state.copy()
+
+        sim_thread = threading.Thread(target=self.__run, args=(model,curr_state,timeline,trajectory_base,initial_state,), kwargs={'t':t,
                                         'number_of_trajectories':number_of_trajectories,
                                         'increment':increment, 'seed':seed,
                                         'debug':debug, 'profile':profile,'show_labels':show_labels,
@@ -818,7 +848,7 @@ class BasicTauHybridSolver(GillesPySolver):
             live_grapher = gillespy2.core.liveGraphing.LiveDisplayer(display_type,display_interval,model)
 
             display_timer = RepeatTimer(display_interval, live_grapher.display,
-                                        args=(d_curr_time, d_curr_state, d_timeline, d_t_base))
+                                        args=( curr_state, timeline, trajectory_base,))
             display_timer.start()
 
         sim_thread.join(timeout=timeout)
@@ -830,48 +860,48 @@ class BasicTauHybridSolver(GillesPySolver):
         while self.result is None: pass
         return self.result, self.rc
 
-    def __run(self, model, t=20, number_of_trajectories=1, increment=0.05, seed=None, 
+    def __run(self, model, curr_state, timeline, trajectory_base,initial_state, t=20, number_of_trajectories=1, increment=0.05, seed=None,
             debug=False, profile=False, show_labels=True,
             tau_tol=0.03, event_sensitivity=100, integrator='LSODA',
-            integrator_options={}, **kwargs):
+            integrator_options={},  **kwargs):
 
-        if debug:
-            print("t = ", t)
-            print("increment = ", increment)
+        # if debug:
+        #     print("t = ", t)
+        #     print("increment = ", increment)
+        #
+        # if len(model.listOfEvents):
+        #     self.__set_recommended_ode_defaults(integrator_options)
+        # self.__set_seed(seed)
 
-        if len(model.listOfEvents):
-            self.__set_recommended_ode_defaults(integrator_options)
-        self.__set_seed(seed)
-
-        # create mapping of species dictionary to array indices
+        # # create mapping of species dictionary to array indices
         species_mappings = model._listOfSpecies
         species = list(species_mappings.keys())
         parameter_mappings = model._listOfParameters
         parameters = list(parameter_mappings.keys())
         number_species = len(species)
-
-        initial_state = OrderedDict()
-        self.__initialize_state(model, initial_state, debug)
-        initial_state['vol'] = model.volume
-        initial_state['t'] = 0
-
-        # create numpy array for timeline
-        timeline = np.linspace(0, t, int(round(t / increment + 1)))
-
-        # create numpy matrix to mark all state data of time and species
-        trajectory_base = np.zeros((number_of_trajectories, timeline.size, number_species + 1))
-
-        # copy time values to all trajectory row starts
-        trajectory_base[:, :, 0] = timeline
-
+        #
+        # initial_state = OrderedDict()
+        # self.__initialize_state(model, initial_state, debug)
+        # initial_state['vol'] = model.volume
+        # initial_state['t'] = 0
+        #
+        # # create numpy array for timeline
+        # timeline = np.linspace(0, t, int(round(t / increment + 1)))
+        #
+        # # create numpy matrix to mark all state data of time and species
+        # trajectory_base = np.zeros((number_of_trajectories, timeline.size, number_species + 1))
+        #
+        # # copy time values to all trajectory row starts
+        # trajectory_base[:, :, 0] = timeline
+        #
         t0_delayed_events, species_modified_by_events = self.__check_t0_events(model, initial_state)
 
-        # copy initial populations to base
-        spec_modes = ['continuous', 'dynamic', 'discrete']
-        for i, s in enumerate(species):
-            if model.listOfSpecies[s].mode not in spec_modes:
-                raise SpeciesError('Species mode can only be \'continuous\', \'dynamic\', or \'discrete\'.')
-            trajectory_base[:, 0, i+1] = initial_state[s]
+        # # copy initial populations to base
+        # spec_modes = ['continuous', 'dynamic', 'discrete']
+        # for i, s in enumerate(species):
+        #     if model.listOfSpecies[s].mode not in spec_modes:
+        #         raise SpeciesError('Species mode can only be \'continuous\', \'dynamic\', or \'discrete\'.')
+        #     trajectory_base[:, 0, i+1] = initial_state[s]
 
         # Create deterministic tracking data structures
         det_spec = {species:True for (species, value) in model.listOfSpecies.items() if value.mode == 'dynamic'}
@@ -914,7 +944,13 @@ class BasicTauHybridSolver(GillesPySolver):
 
             trajectory = trajectory_base[trajectory_num] # NumPy array containing this simulation's results
             propensities = OrderedDict() # Propensities evaluated at current state
+
+            # This line is messing up live graphing.
+            # Need to look into how live graphing changes with multiple trajectories
+            ##############################################################################
             curr_state = initial_state.copy() # Current state of the system
+
+
             curr_time = 0 # Current Simulation Time
             end_time = model.tspan[-1] # End of Simulation time
             entry_pos = 1
@@ -958,7 +994,7 @@ class BasicTauHybridSolver(GillesPySolver):
                 #####################################################################
                 #Added for testing a slower reaction
                 import time
-                time.sleep(0.03)
+                time.sleep(0.01)
 
                 # # TODO create better entry_count variable instead of flooring every time
                 # entry_count = math.floor(curr_time)
