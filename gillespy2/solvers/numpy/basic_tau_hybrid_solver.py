@@ -61,14 +61,14 @@ class BasicTauHybridSolver(GillesPySolver):
     # curr_state = None
     # timeline = None
     # trajectory_base = None
-    d_time = None
-    d_state = None
+    d_curr_time = None
+    d_curr_state = None
     d_timeline = None
     d_t_base = None
 
     def __init__(self):
         name = 'BasicTauHybridSolver'
-        rc = 0  
+        rc = 0
         
     def __toggle_reactions(self, model, all_compiled, deterministic_reactions, dependencies, curr_state, det_spec):
         '''
@@ -818,7 +818,7 @@ class BasicTauHybridSolver(GillesPySolver):
             live_grapher = gillespy2.core.liveGraphing.LiveDisplayer(display_type,display_interval,model)
 
             display_timer = RepeatTimer(display_interval, live_grapher.display,
-                                        args=(d_time,  d_state, d_timeline, d_t_base))
+                                        args=(d_curr_time, d_curr_state, d_timeline, d_t_base))
             display_timer.start()
 
         sim_thread.join(timeout=timeout)
@@ -834,8 +834,6 @@ class BasicTauHybridSolver(GillesPySolver):
             debug=False, profile=False, show_labels=True,
             tau_tol=0.03, event_sensitivity=100, integrator='LSODA',
             integrator_options={}, **kwargs):
-
-        # global curr_time,  curr_state, timeline, trajectory_base
 
         if debug:
             print("t = ", t)

@@ -60,40 +60,44 @@ class LiveDisplayer():
 
     def display(self, curr_time,  curr_state, timeline, trajectory_base):
 
+
         from IPython.display import clear_output
         from math import floor
 
         # curr_time = curr_state['time']
+        try:
 
-        if self.display_type == "text":
+            if self.display_type == "text":
 
-            print(str(round(curr_time, 2))[:10].ljust(10), end="|")
+                print(str(round(curr_time, 2))[:10].ljust(10), end="|")
 
-            for i in range(self.number_species):
-                print(str(curr_state[self.species[i]])[:10].ljust(10), end="|")
-            print("")
+                for i in range(self.number_species):
+                    print(str(curr_state[self.species[i]])[:10].ljust(10), end="|")
+                print("")
 
-        elif self.display_type == "progress":
+            elif self.display_type == "progress":
 
-            clear_output(wait=True)
-            print("progress =", round((curr_time / timeline.size) * 100, 2), "%\n")
+                clear_output(wait=True)
+                print("progress =", round((curr_time / timeline.size) * 100, 2), "%\n")
 
-        elif self.display_type == "graph":
+            elif self.display_type == "graph":
 
-            import matplotlib.pyplot as plt
-            from gillespy2.core.results import common_rgb_values
+                import matplotlib.pyplot as plt
+                from gillespy2.core.results import common_rgb_values
 
-            entry_count = floor(curr_time)
+                entry_count = floor(curr_time)
 
-            clear_output(wait=True)
-            plt.figure(figsize=(18, 10))
-            plt.xlim(right=timeline.size)
-            for i in range(self.number_species):
-                line_color = common_rgb_values()[(i) % len(common_rgb_values())]
+                clear_output(wait=True)
+                plt.figure(figsize=(18, 10))
+                plt.xlim(right=timeline.size)
+                for i in range(self.number_species):
+                    line_color = common_rgb_values()[(i) % len(common_rgb_values())]
 
-                plt.plot(trajectory_base[0][:, 0][:entry_count].tolist(),
-                         trajectory_base[0][:, i + 1][:entry_count].tolist(), color=line_color,
-                         label=self.species[i])
+                    plt.plot(trajectory_base[0][:, 0][:entry_count].tolist(),
+                             trajectory_base[0][:, i + 1][:entry_count].tolist(), color=line_color,
+                             label=self.species[i])
 
-            plt.legend(loc='upper right')
-            plt.show()
+                plt.legend(loc='upper right')
+                plt.show()
+        except:
+            print("failed to print")
