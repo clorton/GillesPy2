@@ -923,7 +923,6 @@ class BasicTauHybridSolver(GillesPySolver):
             propensities = OrderedDict() # Propensities evaluated at current state
 
             curr_state[0] = initial_state.copy()
-
             curr_time[0] = 0 # Current Simulation Time
 
             end_time = model.tspan[-1] # End of Simulation time
@@ -948,7 +947,6 @@ class BasicTauHybridSolver(GillesPySolver):
             delayed_events = []
             trigger_states = {}
 
-
             # Handle delayed t0 events
             for state in trigger_states.values():
                 if state is None: state = curr_state[0]
@@ -962,13 +960,6 @@ class BasicTauHybridSolver(GillesPySolver):
 
             # Each save step
             while curr_time[0] < model.tspan[-1]:
-
-                #####################################################################
-                #Added for testing a slower reaction
-                import time
-                time.sleep(0.001)
-
-                #####################################################################
 
                 if self.stop_event.is_set():
                     self.rc = 33
