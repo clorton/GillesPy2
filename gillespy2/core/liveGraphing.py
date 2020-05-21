@@ -40,7 +40,6 @@ class LiveDisplayer():
         self.timeline_len = timeline_len
         self.number_of_trajectories = number_of_trajectories
 
-
         species_mappings = model._listOfSpecies
         self.species = list(species_mappings.keys())
 
@@ -52,11 +51,7 @@ class LiveDisplayer():
                 self.display_type = "progress"
                 log.warning('Unspecified display_type. Displaying progress.')
 
-        # elif display_type == "text":
-        #         self.print_text_header()
-
     def trajectory_header(self):
-        # print("Trajectory (", self.current_trajectory, "/", self.number_of_trajectories, ")", sep="")
         return "Trajectory ("+ str(self.current_trajectory)+ "/"+ str(self.number_of_trajectories)+ ")"
 
     def increment_trajectory(self,trajectory_num):
@@ -85,44 +80,47 @@ class LiveDisplayer():
         curr_time = curr_time[0]
         curr_state = curr_state[0]
 
-        if self.display_type == "text":
+        try:
+            if self.display_type == "text":
 
-            if not self.header_printed:
-                self.print_text_header()
+                if not self.header_printed:
+                    self.print_text_header()
 
-            print(str(round(curr_time, 2))[:10].ljust(10), end="|")
+                print(str(round(curr_time, 2))[:10].ljust(10), end="|")
 
-            for i in range(self.number_species):
-                print(str(curr_state[self.species[i]])[:10].ljust(10), end="|")
-            print("")
+                for i in range(self.number_species):
+                    print(str(curr_state[self.species[i]])[:10].ljust(10), end="|")
+                print("")
 
-        elif self.display_type == "progress":
+            elif self.display_type == "progress":
 
-            clear_output(wait=True)
-            if self.number_of_trajectories > 1:
-                print(self.trajectory_header())
+                clear_output(wait=True)
+                if self.number_of_trajectories > 1:
+                    print(self.trajectory_header())
 
-            print("progress =", round((curr_time / self.timeline_len) * 100, 2), "%\n")
+                print("progress =", round((curr_time / self.timeline_len) * 100, 2), "%\n")
 
-        elif self.display_type == "graph":
+            elif self.display_type == "graph":
 
-            import matplotlib.pyplot as plt
-            from gillespy2.core.results import common_rgb_values
+                import matplotlib.pyplot as plt
+                from gillespy2.core.results import common_rgb_values
 
-            entry_count = floor(curr_time)
+                entry_count = floor(curr_time)
 
-            clear_output(wait=True)
+                clear_output(wait=True)
 
 
-            plt.figure(figsize=(18, 10))
-            plt.xlim(right=self.timeline_len)
-            plt.title(self.trajectory_header())
-            for i in range(self.number_species):
-                line_color = common_rgb_values()[(i) % len(common_rgb_values())]
+                plt.figure(figsize=(18, 10))
+                plt.xlim(right=self.timeline_len)
+                plt.title(self.trajectory_header())
+                for i in range(self.number_species):
+                    line_color = common_rgb_values()[(i) % len(common_rgb_values())]
 
-                plt.plot(trajectory_base[0][:, 0][:entry_count].tolist(),
-                         trajectory_base[0][:, i + 1][:entry_count].tolist(), color=line_color,
-                         label=self.species[i])
+                    plt.plot(trajectory_base[0][:, 0][:entry_count].tolist(),
+                             trajectory_base[0][:, i + 1][:entry_count].tolist(), color=line_color,
+                             label=self.species[i])
 
-            plt.legend(loc='upper right')
-            plt.show()
+                plt.legend(loc='upper right')
+                plt.show()
+        except:
+            log.warning("exception in liveGraphing.display. Variables may not have initialized properly before display was called.")
