@@ -1,5 +1,11 @@
 from gillespy2.core import log
 
+import threading
+class RepeatTimer(threading.Timer):
+    def run(self):
+        while not self.finished.wait(self.interval):
+            self.function(*self.args, **self.kwargs)
+
 def display_types():
     return ["graph","text","progress"]
 

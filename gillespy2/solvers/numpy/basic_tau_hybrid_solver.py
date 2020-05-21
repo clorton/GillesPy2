@@ -11,10 +11,10 @@ from gillespy2.core.gillespyError import *
 
 eval_globals = math.__dict__
 
-class RepeatTimer(threading.Timer):
-    def run(self):
-        while not self.finished.wait(self.interval):
-            self.function(*self.args, **self.kwargs)
+# class RepeatTimer(threading.Timer):
+#     def run(self):
+#         while not self.finished.wait(self.interval):
+#             self.function(*self.args, **self.kwargs)
 
 def __piecewise(*args):
     '''
@@ -849,7 +849,7 @@ class BasicTauHybridSolver(GillesPySolver):
 
             live_grapher[0] = gillespy2.core.liveGraphing.LiveDisplayer(display_type,display_interval,model,timeline.size,number_of_trajectories)
 
-            display_timer = RepeatTimer(display_interval, live_grapher[0].display,
+            display_timer = gillespy2.core.liveGraphing.RepeatTimer(display_interval, live_grapher[0].display,
                                         args=( curr_state,curr_time, trajectory_base,))
             display_timer.start()
 
