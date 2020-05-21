@@ -824,14 +824,13 @@ class BasicTauHybridSolver(GillesPySolver):
                 raise SpeciesError('Species mode can only be \'continuous\', \'dynamic\', or \'discrete\'.')
             trajectory_base[:, 0, i+1] = initial_state[s]
 
-        # curr_time = 0  # Current Simulation Time
-
-        #curr_time is wrapped in list so that reference is passed to __run
+        #curr_time and curr_state are list of len 1 so that __run receives reference
         curr_time = [0]  # Current Simulation Time
-
         curr_state = [None]
+        live_grapher = [None]
 
-        sim_thread = threading.Thread(target=self.__run, args=(model,curr_state,curr_time,timeline,trajectory_base,initial_state,), kwargs={'t':t,
+
+        sim_thread = threading.Thread(target=self.__run, args=(model,curr_state,curr_time,timeline,trajectory_base,initial_state,live_grapher,), kwargs={'t':t,
                                         'number_of_trajectories':number_of_trajectories,
                                         'increment':increment, 'seed':seed,
                                         'debug':debug, 'profile':profile,'show_labels':show_labels,
@@ -844,39 +843,29 @@ class BasicTauHybridSolver(GillesPySolver):
 
         from gillespy2.core.liveGraphing import valid_graph_params
 
-        live_grapher = None
-
         if valid_graph_params(display_type,display_interval):
 
             import gillespy2.core.liveGraphing
 
-            live_grapher = gillespy2.core.liveGraphing.LiveDisplayer(display_type,display_interval,model,timeline.size)
+            live_grapher[0] = gillespy2.core.liveGraphing.LiveDisplayer(display_type,display_interval,model,timeline.size,number_of_trajectories)
 
-            display_timer = RepeatTimer(display_interval, live_grapher.display,
+            display_timer = RepeatTimer(display_interval, live_grapher[0].display,
                                         args=( curr_state,curr_time, trajectory_base,))
             display_timer.start()
 
         sim_thread.join(timeout=timeout)
 
-        if live_grapher is not None:
+        if live_grapher[0] is not None:
             display_timer.cancel()
 
         self.stop_event.set()
         while self.result is None: pass
         return self.result, self.rc
 
-    def __run(self, model, curr_state,curr_time, timeline, trajectory_base, initial_state, t=20, number_of_trajectories=1, increment=0.05, seed=None,
+    def __run(self, model, curr_state,curr_time, timeline, trajectory_base, initial_state,live_grapher, t=20, number_of_trajectories=1, increment=0.05, seed=None,
             debug=False, profile=False, show_labels=True,
             tau_tol=0.03, event_sensitivity=100, integrator='LSODA',
             integrator_options={},  **kwargs):
-
-        # if debug:
-        #     print("t = ", t)
-        #     print("increment = ", increment)
-        #
-        # if len(model.listOfEvents):
-        #     self.__set_recommended_ode_defaults(integrator_options)
-        # self.__set_seed(seed)
 
         # # create mapping of species dictionary to array indices
         species_mappings = model._listOfSpecies
@@ -884,29 +873,8 @@ class BasicTauHybridSolver(GillesPySolver):
         parameter_mappings = model._listOfParameters
         parameters = list(parameter_mappings.keys())
         number_species = len(species)
-        #
-        # initial_state = OrderedDict()
-        # self.__initialize_state(model, initial_state, debug)
-        # initial_state['vol'] = model.volume
-        # initial_state['t'] = 0
-        #
-        # # create numpy array for timeline
-        # timeline = np.linspace(0, t, int(round(t / increment + 1)))
-        #
-        # # create numpy matrix to mark all state data of time and species
-        # trajectory_base = np.zeros((number_of_trajectories, timeline.size, number_species + 1))
-        #
-        # # copy time values to all trajectory row starts
-        # trajectory_base[:, :, 0] = timeline
-        #
-        t0_delayed_events, species_modified_by_events = self.__check_t0_events(model, initial_state)
 
-        # # copy initial populations to base
-        # spec_modes = ['continuous', 'dynamic', 'discrete']
-        # for i, s in enumerate(species):
-        #     if model.listOfSpecies[s].mode not in spec_modes:
-        #         raise SpeciesError('Species mode can only be \'continuous\', \'dynamic\', or \'discrete\'.')
-        #     trajectory_base[:, 0, i+1] = initial_state[s]
+        t0_delayed_events, species_modified_by_events = self.__check_t0_events(model, initial_state)
 
         # Create deterministic tracking data structures
         det_spec = {species:True for (species, value) in model.listOfSpecies.items() if value.mode == 'dynamic'}
@@ -942,6 +910,10 @@ class BasicTauHybridSolver(GillesPySolver):
         # Main trajectory loop
         for trajectory_num in range(number_of_trajectories):
 
+            #For multi trajectories, live_grapher needs to be informed of trajectory increment
+            if live_grapher[0] is not None:
+                live_grapher[0].increment_trajectory(trajectory_num)
+
             if self.stop_event.is_set():
                 print('exiting')
                 self.rc = 33
@@ -950,21 +922,15 @@ class BasicTauHybridSolver(GillesPySolver):
             trajectory = trajectory_base[trajectory_num] # NumPy array containing this simulation's results
             propensities = OrderedDict() # Propensities evaluated at current state
 
-            # This line is messing up live graphing.
-            # Need to look into how live graphing changes with multiple trajectories
-            ##############################################################################
-            # curr_state = initial_state.copy() # Current state of the system
-            curr_state[0] = initial_state
+            curr_state[0] = initial_state.copy()
 
             curr_time[0] = 0 # Current Simulation Time
-
 
             end_time = model.tspan[-1] # End of Simulation time
             entry_pos = 1
             data = OrderedDict() # Dictionary for show_labels results
             data['time'] = timeline # All time entries for show_labels results
             save_times = timeline
-
 
             # Record Highest Order reactant for each reaction and set error tolerance
             if not pure_ode:
@@ -997,16 +963,11 @@ class BasicTauHybridSolver(GillesPySolver):
             # Each save step
             while curr_time[0] < model.tspan[-1]:
 
-                # print(curr_state['t'])
-                # print(curr_time)
-
                 #####################################################################
                 #Added for testing a slower reaction
                 import time
-                time.sleep(0.01)
+                time.sleep(0.001)
 
-                # # TODO create better entry_count variable instead of flooring every time
-                # entry_count = math.floor(curr_time)
                 #####################################################################
 
                 if self.stop_event.is_set():
