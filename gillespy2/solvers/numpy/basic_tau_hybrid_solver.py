@@ -11,11 +11,6 @@ from gillespy2.core.gillespyError import *
 
 eval_globals = math.__dict__
 
-# class RepeatTimer(threading.Timer):
-#     def run(self):
-#         while not self.finished.wait(self.interval):
-#             self.function(*self.args, **self.kwargs)
-
 def __piecewise(*args):
     '''
     Eval entry for piecewise functions
