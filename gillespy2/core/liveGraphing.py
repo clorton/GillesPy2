@@ -32,11 +32,12 @@ def valid_graph_params(display_type,display_interval):
 
 class LiveDisplayer():
 
-    def __init__(self,display_type = None,display_interval = 0,model = None):
+    def __init__(self,display_type = None,display_interval = 0,model = None,timeline_len=None):
 
         self.display_type = display_type
         self.display_interval = display_interval
         self.model = model
+        self.timeline_len = timeline_len
 
         species_mappings = model._listOfSpecies
         self.species = list(species_mappings.keys())
@@ -58,13 +59,18 @@ class LiveDisplayer():
             print(species[:10].ljust(10), end="|")
         print("")
 
-    def display(self, curr_state, timeline, trajectory_base):
+    '''
+    curr_state and curr_time should be list of len 1 to get reference
+    '''
+    def display(self, curr_state, curr_time, trajectory_base):
+
 
 
         from IPython.display import clear_output
         from math import floor
 
-        curr_time = curr_state['t']
+        curr_time = curr_time[0]
+        curr_state = curr_state[0]
 
         if self.display_type == "text":
 
@@ -77,7 +83,7 @@ class LiveDisplayer():
         elif self.display_type == "progress":
 
             clear_output(wait=True)
-            print("progress =", round((curr_time / timeline.size) * 100, 2), "%\n")
+            print("progress =", round((curr_time / self.timeline_len) * 100, 2), "%\n")
 
         elif self.display_type == "graph":
 
@@ -88,7 +94,7 @@ class LiveDisplayer():
 
             clear_output(wait=True)
             plt.figure(figsize=(18, 10))
-            plt.xlim(right=timeline.size)
+            plt.xlim(right=self.timeline_len)
             for i in range(self.number_species):
                 line_color = common_rgb_values()[(i) % len(common_rgb_values())]
 
